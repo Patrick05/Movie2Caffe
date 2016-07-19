@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# PyCharm
+misc.xml
+vcs.xml
+modules.xml
+Movie2Caffe.iml
