@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 from PIL import Image, ImageTk
 import h5py
+from time import gmtime, strftime
 
 class WorkingWindow(Frame):
 
@@ -142,7 +143,10 @@ class WorkingWindow(Frame):
         for index in range(0, self.currentFrame+1):
             convertedFrames.append(
                 np.transpose(
-                    self.frames[index].astype("float"),
+                    cv2.cvtColor(
+                        self.frames[index],
+                        cv2.COLOR_RGBA2BGR
+                    ).astype("float"),
                     (2,0,1)
                 )
             )
@@ -155,18 +159,14 @@ class WorkingWindow(Frame):
         return convertedFrames
 
     def convertLabels(self):
-        convertedLabels = [] # todo convert to binary image
+        convertedLabels = np.zeros((self.currentFrame+1, int(Settings.labelHeight), int(Settings.labelWidth)))
         for index in range(0, self.currentFrame+1):
-            convertedLabels.append(
-                cv2.cvtColor(
-                    self.labels[index],
-                    cv2.COLOR_RGBA2GRAY
-                )
-            )
-
-            for x in range(0, convertedLabels[len(convertedLabels) - 1].shape[1]):
-                for y in range(0, convertedLabels[len(convertedLabels) - 1].shape[2]):
-                    convertedLabels[len(convertedLabels) - 1][0][x][y] = float(convertedLabels[len(convertedLabels) - 1][0][x][y])/255.0
+            for x in range(0, self.labels[index].shape[1]):
+                for y in range(0, self.labels[index].shape[0]):
+                    if self.labels[index][y][x][0] != 0 and self.labels[index][y][x][1] != 0 and self.labels[index][y][x][2] != 0:
+                        convertedLabels[index][y][x] = 1
+                    else:
+                        convertedLabels[index][y][x] = 0
 
         return convertedLabels
 
@@ -175,12 +175,12 @@ class WorkingWindow(Frame):
         convertedFrames = self.convertFrames()
         convertedLabels = self.convertLabels()
 
-        h5f = h5py.File("data.h5", "w")
-        h5f.create_dataset("data", (self.currentFrame+1, 3, Settings.outputHeight, Settings.outputWidth))
-        h5f.create_dataset("label", (self.currentFrame+1, 1, Settings.labelHeight, Settings.labelWidth))
+        h5f = h5py.File("data-{}.h5".format(strftime("%d-%b-%Y-%H-%M-%S", gmtime())), "w")
+        h5f.create_dataset("data", (self.currentFrame+1, 3, Settings.outputHeight, Settings.outputWidth), dtype="float")
+        h5f.create_dataset("label", (self.currentFrame+1, 1, Settings.labelHeight, Settings.labelWidth), dtype="float")
 
-        for index in range(0, self.currentFrame):
-            h5f["data"] = convertedFrames[index]
-            h5f["label"] = convertedLabels[index]
+        for index in range(0, self.currentFrame+1):
+            h5f["data"][index] = convertedFrames[index]
+            h5f["label"][index] = convertedLabels[index]
 
         h5f.close()
